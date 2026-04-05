@@ -1,3 +1,4 @@
 Flask==3.0.3
 google-api-python-client
 gunicorn==22.0.0
+functions-framework>=3.0.0
