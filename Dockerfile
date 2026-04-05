@@ -1,11 +1,19 @@
-FROM python:3.9-slim
+# Use the official lightweight Python image.
+# https://hub.docker.com/_/python
+FROM python:3.14
 
-WORKDIR /app
+# Allow statements and log messages to stdout to be sent to the Cloud Run logs
+# where they can be viewed.
+ENV PYTHONUNBUFFERED TRUE
 
-COPY requirements.txt .
-# Uncomment the line below if you add dependencies to requirements.txt
+# # Copy local code to the container image.
+# ENV APP_HOME /app
+# WORKDIR $APP_HOME
+# COPY . ./
+
+# # Install production dependencies.
 # RUN pip install --no-cache-dir -r requirements.txt
 
-COPY . .
-
-CMD ["python", "main.py"]
+# # Run the web service on container start.
+# # Use PORT environment variable, or default to 8080.
+# CMD exec gunicorn --bind :${PORT:-8080} --workers 1 --threads 8 --timeout 0 main:app

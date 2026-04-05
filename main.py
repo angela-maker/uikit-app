@@ -1,55 +1,103 @@
-import os
-from flask import Flask, request, jsonify
+from typing import Any, Mapping
 
-app = Flask(__name__)
+import flask
+import functions_framework
 
-@app.route('/', methods=['POST'])
-def on_event():
-    """Handles incoming chat events."""
-    event = request.get_json()
-    print(event) # Log the event for debugging
+# Command IDs (configure these in Google Chat API)
+ABOUT_COMMAND_ID = 1  # ID for the "/about" slash command
+HELP_COMMAND_ID = 2  # ID for the "Help" quick command
 
-    if event['type'] == 'ADDED_TO_SPACE':
-        return jsonify({'text': 'Thanks for adding me!'})
-    elif event['type'] == 'MESSAGE':
-        return handle_message(event)
+
+@functions_framework.http
+def avatar_app(req: flask.Request) -> Mapping[str, Any]:
+    """Google Cloud Function that handles HTTP requests from Google Chat.
+
+    Args:
+        flask.Request: the request
+
+    Returns:
+        Mapping[str, Any]: the response
+    """
+    event = req.get_json(silent=True)
+
+    if event and "appCommandMetadata" in event:
+        return handle_app_commands(event)
     else:
-        return jsonify({})
+        return handle_regular_message(event)
 
-def handle_message(event):
-    """Handles MESSAGE events."""
-    message_text = event['message']['text'].lower()
 
-    # Simple "Hello World" card response
-    if 'hello' in message_text:
-        card = {
-            "cardsV2": [
-                {
-                    "cardId": "helloCard",
-                    "card": {
-                        "header": {
-                            "title": "Hello from uikit-app!",
-                            "subtitle": "Basic Card Demo"
-                        },
-                        "sections": [
-                            {
-                                "widgets": [
-                                    {
-                                        "textParagraph": {
-                                            "text": "This is a simple UI Kit card generated on the fly."
-                                        }
-                                    }
-                                ]
-                            }
-                        ]
-                    }
-                }
-            ]
+def handle_app_commands(event: Mapping[str, Any]) -> Mapping[str, Any]:
+    """Handles slash and quick commands.
+
+    Args:
+        Mapping[str, Any] event: The Google Chat event.
+
+    Returns:
+        Mapping[str, Any]: the response
+    """
+    app_command_id = event["appCommandMetadata"]["appCommandId"]
+
+    if app_command_id == ABOUT_COMMAND_ID:
+        return {
+            "privateMessageViewer": event["user"],
+            "text": "The Avatar app replies to Google Chat messages.",
         }
-        return jsonify(card)
-    else:
-        return jsonify({'text': 'You said: ' + event['message']['text']})
+    elif app_command_id == HELP_COMMAND_ID:
+        return {
+            "privateMessageViewer": event["user"],
+            "text": "The Avatar app replies to Google Chat messages.",
+        }
+    return {}
 
-if __name__ == '__main__':
-    app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 8080)))
 
+
+
+def handle_regular_message(event: Mapping[str, Any]) -> Mapping[str, Any]:
+    """Handles regular messages (not commands).
+
+    Args:
+        Mapping[str, Any] event: The Google Chat event.
+
+    Returns:
+        Mapping[str, Any]: the response
+    """
+
+    if not event or "user" not in event:
+        return "Invalid request."
+
+    message_data = create_message(event["user"])
+    return message_data
+
+
+def create_message(user: Mapping[str, Any]) -> Mapping[str, Any]:
+    """Creates a card message with the user's avatar.
+
+    Args:
+        Mapping[str, Any] user: The user who sent the message.
+
+    Returns:
+        Mapping[str, Any]: a card with the user's avatar.
+    """
+    display_name = user.get("displayName", "")
+    avatar_url = user.get("avatarUrl", "")
+
+    return {
+        "text": "Here's your avatar",
+        "cardsV2": [
+            {
+                "cardId": "avatarCard",
+                "card": {
+                    "name": "Avatar Card",
+                    "header": {"title": f"Hello {display_name}!"},
+                    "sections": [
+                        {
+                            "widgets": [
+                                {"textParagraph": {"text": "Your avatar picture:"}},
+                                {"image": {"imageUrl": avatar_url}},
+                            ]
+                        }
+                    ],
+                },
+            }
+        ],
+    }
